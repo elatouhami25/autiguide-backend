@@ -18,6 +18,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(callSuper = false)
 // Indique que la clé primaire de cette table est une clé étrangère vers "utilisateurs"
 @PrimaryKeyJoinColumn(name = "utilisateur_id")
 public class Parent extends Utilisateur {
