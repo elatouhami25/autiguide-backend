@@ -19,6 +19,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @PrimaryKeyJoinColumn(name = "utilisateur_id")
+@EqualsAndHashCode(callSuper = false)
 public class Admin extends Utilisateur {
 
     /**
