@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.List;
+import com.autiguide.autiguide.exception.ResourceNotFoundException;
 
 /**
  * Service responsable du calcul du score TSA,
@@ -39,7 +40,7 @@ public class ResultatService {
 
         // 1. Récupérer l'enfant
         Enfant enfant = enfantRepository.findById(enfantId)
-                .orElseThrow(() -> new RuntimeException("Enfant introuvable id: " + enfantId));
+                .orElseThrow(() -> new ResourceNotFoundException("Enfant", enfantId));
 
         // 2. Calculer le score = nombre de réponses "Oui"
         int score = (int) reponses.stream().filter(r -> r).count();
@@ -88,7 +89,7 @@ public class ResultatService {
      */
     public PlanPersonnalise consulterPlan(Long resultatId) {
         return planRepository.findByResultatId(resultatId)
-                .orElseThrow(() -> new RuntimeException("Plan introuvable pour résultat id: " + resultatId));
+                .orElseThrow(() -> new ResourceNotFoundException("PlanPersonnalise", resultatId));
     }
 
     /**

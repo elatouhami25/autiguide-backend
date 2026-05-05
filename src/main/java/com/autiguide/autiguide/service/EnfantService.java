@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
-
+import com.autiguide.autiguide.exception.ResourceNotFoundException;
 /**
  * Service gérant la logique métier liée aux enfants.
  * C'est ici qu'on traite les données avant de les envoyer à la base de données.
@@ -66,8 +66,7 @@ public class EnfantService {
     public Enfant update(Long id, Enfant newEnfant) {
         // On cherche l'enfant existant, sinon on lance une exception
         Enfant enfant = enfantRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Enfant non trouvé avec l'id: " + id));
-
+                .orElseThrow(() -> new ResourceNotFoundException("Enfant", id));
         // On met à jour uniquement les champs modifiables
         enfant.setPrenom(newEnfant.getPrenom());
         enfant.setDateNaissance(newEnfant.getDateNaissance());

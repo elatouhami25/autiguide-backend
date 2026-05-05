@@ -1,5 +1,6 @@
 package com.autiguide.autiguide.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
@@ -18,19 +19,20 @@ public class Enfant {
     private Long id;
 
     private String prenom;
-
     private LocalDate dateNaissance;
-
     private String sexe;
 
     @ManyToOne
     @JoinColumn(name = "parent_id")
+    @JsonIgnore
     private Parent parent;
 
     @OneToMany(mappedBy = "enfant", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Resultat> resultats;
 
     @OneToMany(mappedBy = "enfant", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<SuiviJournalier> suivis;
 
     public int calculerAge() {

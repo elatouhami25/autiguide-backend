@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.List;
+import com.autiguide.autiguide.exception.ResourceNotFoundException;
 
 /**
  * Service responsable de l'enregistrement du suivi journalier
@@ -44,7 +45,7 @@ public class SuiviJournalierService {
 
         // 1. Récupérer l'enfant
         Enfant enfant = enfantRepository.findById(enfantId)
-                .orElseThrow(() -> new RuntimeException("Enfant introuvable id: " + enfantId));
+                .orElseThrow(() -> new ResourceNotFoundException("Enfant", enfantId));
 
         // 2. Récupérer le parent de l'enfant
         Parent parent = enfant.getParent();

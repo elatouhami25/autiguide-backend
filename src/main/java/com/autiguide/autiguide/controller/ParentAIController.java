@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import com.autiguide.autiguide.exception.ResourceNotFoundException;
 
 /**
  * Controller pour la gestion du suivi journalier
