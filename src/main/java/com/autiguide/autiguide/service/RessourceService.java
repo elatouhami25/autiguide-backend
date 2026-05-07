@@ -8,7 +8,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-class RessourceService {
+public class RessourceService {
 
     private final RessourceRepository ressourceRepository;
 
