@@ -72,20 +72,22 @@ public class SuiviJournalierService {
             Resultat dernierResultat = resultats.get(0);
             int score = dernierResultat.getScore();
             NiveauRisque niveau = dernierResultat.getNiveauRisque();
+            int age = enfant.calculerAge(); // âge pour adapter les conseils
 
-            log.info("Génération conseils IA - score:{} niveau:{}", score, niveau);
+            log.info("Génération conseils IA - score:{} niveau:{} age:{}", score, niveau, age);
 
-            // 6. Générer les conseils via Claude AI
+            // 6. Générer les conseils via IA (adaptés à l'âge)
             return claudeAIService.genererConseilsSuivi(
-                    score, niveau,
+                    score, niveau, age,
                     sommeil, comportement, communication, crises
             );
         }
 
-        // Si pas encore de résultat → conseils génériques
+        // Si pas encore de résultat → conseils génériques avec l'âge
+        int age = enfant.calculerAge();
         log.warn("Aucun résultat TSA trouvé pour enfant id: {} - conseils génériques", enfantId);
         return claudeAIService.genererConseilsSuivi(
-                5, NiveauRisque.MOYEN,
+                5, NiveauRisque.MOYEN, age,
                 sommeil, comportement, communication, crises
         );
     }

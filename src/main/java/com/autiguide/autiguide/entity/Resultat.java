@@ -1,5 +1,7 @@
 package com.autiguide.autiguide.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
@@ -35,9 +37,11 @@ public class Resultat {
 
     /**
      * L'enfant concerné par ce résultat.
+     * On ignore les champs qui créent des boucles de sérialisation.
      */
     @ManyToOne
     @JoinColumn(name = "enfant_id")
+    @JsonIgnoreProperties({"resultats", "suivis", "parent"})
     private Enfant enfant;
 
     /**
@@ -45,12 +49,15 @@ public class Resultat {
      */
     @ManyToOne
     @JoinColumn(name = "questionnaire_id")
+    @JsonIgnoreProperties({"questions"})
     private Questionnaire questionnaire;
 
     /**
-     * Le plan personnalisé généré à partir de ce résultat.
-     * OneToOne : un résultat → un seul plan
+     * Le plan personnalisé — ignoré dans la sérialisation de Resultat
+     * pour éviter les réponses trop volumineuses et les boucles infinies.
+     * Utiliser GET /api/resultat/{id}/plan pour récupérer le plan séparément.
      */
+    @JsonIgnore
     @OneToOne(mappedBy = "resultat", cascade = CascadeType.ALL)
     private PlanPersonnalise plan;
 

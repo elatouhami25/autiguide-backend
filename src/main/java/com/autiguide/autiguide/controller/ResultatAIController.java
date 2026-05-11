@@ -12,8 +12,10 @@ import java.util.Map;
 import com.autiguide.autiguide.exception.ResourceNotFoundException;
 
 /**
- * Controller pour le calcul des résultats TSA
- * et la génération des plans personnalisés via IA.
+ * Controller pour le calcul des résultats TSA.
+ *
+ * Le score est calculé en Java pur (ResultatService).
+ * L'IA génère uniquement le plan personnalisé.
  */
 @RestController
 @RequestMapping("/api/resultat")
@@ -26,13 +28,14 @@ public class ResultatAIController {
 
     /**
      * POST /api/resultat/calculer
-     * Calcule le score + génère le plan IA + sauvegarde tout en DB.
+     * Calcule le score (Java pur) + génère le plan IA + sauvegarde en DB.
      *
      * Body JSON :
      * {
      *   "enfantId": 1,
      *   "questions": ["Question 1", ...],
-     *   "reponses": [true, false, ...]
+     *   "reponses": [true, false, ...],
+     *   "age": 3   ← optionnel, calculé depuis la DB si absent
      * }
      */
     @PostMapping("/calculer")
@@ -43,9 +46,15 @@ public class ResultatAIController {
         List<String> questions = (List<String>) body.get("questions");
         List<Boolean> reponses = (List<Boolean>) body.get("reponses");
 
-        // Délégation au service
+        // Récupérer l'âge si fourni par le frontend
+        Integer age = null;
+        if (body.get("age") != null) {
+            age = Integer.valueOf(body.get("age").toString());
+        }
+
+        // Délégation au service (calcul Java pur + plan IA)
         Resultat resultat = resultatService.calculerEtSauvegarder(
-                enfantId, questions, reponses
+                enfantId, questions, reponses, age
         );
 
         // Récupérer le plan sauvegardé
@@ -53,11 +62,15 @@ public class ResultatAIController {
                 .findByResultatId(resultat.getId())
                 .orElseThrow();
 
+        // Déterminer la tranche d'âge pour l'affichage
+        int ageEnfant = (age != null) ? age : resultat.getEnfant().calculerAge();
+        String tranche = ResultatService.determinerTranche(ageEnfant);
+
         return ResponseEntity.ok(new AIResponse(
                 resultat.getNiveauRisque().toString(),
                 String.valueOf(resultat.getScore()),
                 plan.getDescription(),
-                "✅ Score calculé, résultat et plan sauvegardés en DB"
+                "✅ Score calculé (Java), plan généré (IA) — Tranche : " + tranche
         ));
     }
 

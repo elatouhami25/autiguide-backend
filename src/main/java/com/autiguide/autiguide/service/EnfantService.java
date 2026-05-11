@@ -1,7 +1,9 @@
 package com.autiguide.autiguide.service;
 
 import com.autiguide.autiguide.entity.Enfant;
+import com.autiguide.autiguide.entity.Parent;
 import com.autiguide.autiguide.repository.EnfantRepository;
+import com.autiguide.autiguide.repository.ParentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.List;
@@ -22,12 +24,38 @@ public class EnfantService {
     @Autowired
     private EnfantRepository enfantRepository;
 
+    @Autowired
+    private ParentRepository parentRepository;
+
+    /**
+     * Sauvegarde un enfant en le liant à son parent via parentId.
+     * Accepte un Map avec : prenom, dateNaissance, sexe, parentId
+     */
+    public Enfant saveWithParent(java.util.Map<String, Object> body) {
+        Enfant enfant = new Enfant();
+        enfant.setPrenom((String) body.get("prenom"));
+        enfant.setSexe((String) body.get("sexe"));
+
+        // Conversion de la date
+        String dateStr = (String) body.get("dateNaissance");
+        if (dateStr != null) {
+            enfant.setDateNaissance(java.time.LocalDate.parse(dateStr));
+        }
+
+        // Lier au parent si parentId fourni
+        Object parentIdObj = body.get("parentId");
+        if (parentIdObj != null) {
+            Long parentId = Long.valueOf(parentIdObj.toString());
+            Parent parent = parentRepository.findById(parentId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Parent", parentId));
+            enfant.setParent(parent);
+        }
+
+        return enfantRepository.save(enfant);
+    }
+
     /**
      * Sauvegarde un nouvel enfant dans la base de données.
-     * Appelé quand le parent ajoute un profil enfant.
-     *
-     * @param enfant L'objet enfant reçu du Controller
-     * @return L'enfant sauvegardé avec son ID généré
      */
     public Enfant save(Enfant enfant) {
         return enfantRepository.save(enfant);
@@ -42,6 +70,15 @@ public class EnfantService {
      */
     public Optional<Enfant> findById(Long id) {
         return enfantRepository.findById(id);
+    }
+
+    /**
+     * Récupère tous les enfants (pour l'admin).
+     *
+     * @return Liste de tous les enfants
+     */
+    public List<Enfant> findAll() {
+        return enfantRepository.findAll();
     }
 
     /**
@@ -63,16 +100,23 @@ public class EnfantService {
      * @param newEnfant Les nouvelles données
      * @return L'enfant mis à jour
      */
-    public Enfant update(Long id, Enfant newEnfant) {
-        // On cherche l'enfant existant, sinon on lance une exception
+    public Enfant update(Long id, java.util.Map<String, Object> body) {
         Enfant enfant = enfantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Enfant", id));
-        // On met à jour uniquement les champs modifiables
-        enfant.setPrenom(newEnfant.getPrenom());
-        enfant.setDateNaissance(newEnfant.getDateNaissance());
-        enfant.setSexe(newEnfant.getSexe());
 
-        // On sauvegarde et retourne l'enfant modifié
+        if (body.get("prenom") != null) enfant.setPrenom((String) body.get("prenom"));
+        if (body.get("sexe") != null) enfant.setSexe((String) body.get("sexe"));
+        if (body.get("dateNaissance") != null) {
+            enfant.setDateNaissance(java.time.LocalDate.parse((String) body.get("dateNaissance")));
+        }
+        // Mettre à jour le parent si fourni
+        Object parentIdObj = body.get("parentId");
+        if (parentIdObj != null) {
+            Long parentId = Long.valueOf(parentIdObj.toString());
+            Parent parent = parentRepository.findById(parentId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Parent", parentId));
+            enfant.setParent(parent);
+        }
         return enfantRepository.save(enfant);
     }
 

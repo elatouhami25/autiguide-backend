@@ -25,4 +25,7 @@ public class SuiviConseilsRequest {
 
     // ID de l'enfant concerné
     private Long enfantId;
+
+    // Notes libres du parent (optionnel)
+    private String notes;
 }

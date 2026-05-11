@@ -10,9 +10,12 @@ import java.util.List;
 import com.autiguide.autiguide.exception.ResourceNotFoundException;
 
 /**
- * Service responsable du calcul du score TSA,
- * de la classification du niveau de risque,
+ * Service responsable du calcul du score TSA (logique Java pure),
+ * de la classification du niveau de risque selon la tranche d'âge,
  * et de la génération du plan personnalisé via IA.
+ *
+ * RÈGLE : Le score et le niveau sont calculés en Java — jamais par l'IA.
+ * L'IA est utilisée UNIQUEMENT pour générer le plan personnalisé.
  */
 @Service
 @RequiredArgsConstructor
@@ -25,32 +28,39 @@ public class ResultatService {
     private final ClaudeAIService claudeAIService;
 
     /**
-     * Calcule le score, classifie le risque,
-     * sauvegarde le résultat ET génère le plan IA.
+     * Calcule le score (Java pur), classifie le risque selon la tranche d'âge,
+     * sauvegarde le résultat ET génère le plan IA adapté à l'âge.
      *
-     * @param enfantId        ID de l'enfant
-     * @param questions       liste des questions posées
-     * @param reponses        liste des réponses (true=Oui, false=Non)
+     * @param enfantId  ID de l'enfant
+     * @param questions liste des questions posées
+     * @param reponses  liste des réponses (true=Oui, false=Non)
+     * @param age       âge de l'enfant (optionnel, calculé depuis la DB si null)
      * @return Resultat sauvegardé avec plan généré
      */
     public Resultat calculerEtSauvegarder(
             Long enfantId,
             List<String> questions,
-            List<Boolean> reponses) {
+            List<Boolean> reponses,
+            Integer age) {
 
         // 1. Récupérer l'enfant
         Enfant enfant = enfantRepository.findById(enfantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Enfant", enfantId));
 
-        // 2. Calculer le score = nombre de réponses "Oui"
-        int score = (int) reponses.stream().filter(r -> r).count();
-        log.info("Score calculé : {}/{}", score, reponses.size());
+        // 2. Calculer l'âge (depuis le paramètre ou depuis la DB)
+        int ageEnfant = (age != null) ? age : enfant.calculerAge();
+        log.info("Âge de l'enfant : {} ans", ageEnfant);
 
-        // 3. Classifier le niveau de risque
-        NiveauRisque niveau = classifierRisque(score);
-        log.info("Niveau de risque : {}", niveau);
+        // 3. Calculer le score = nombre de réponses "Non" (false)
+        //    Chaque "Non" = 1 point de risque (comportement absent = signe d'alerte)
+        int score = (int) reponses.stream().filter(r -> !r).count();
+        log.info("Score calculé : {}/{} (nombre de Non)", score, reponses.size());
 
-        // 4. Sauvegarder le Résultat en DB
+        // 4. Classifier le niveau de risque selon la tranche d'âge
+        NiveauRisque niveau = classifierRisqueParTranche(score, ageEnfant);
+        log.info("Niveau de risque : {} (tranche {})", niveau, determinerTranche(ageEnfant));
+
+        // 5. Sauvegarder le Résultat en DB
         Resultat resultat = new Resultat();
         resultat.setEnfant(enfant);
         resultat.setScore(score);
@@ -59,22 +69,33 @@ public class ResultatService {
         resultatRepository.save(resultat);
         log.info("Résultat sauvegardé avec id: {}", resultat.getId());
 
-        // 5. Générer le plan personnalisé via Claude AI
+        // 6. Générer le plan personnalisé via IA (adapté à la tranche d'âge)
         String contenuPlan = claudeAIService.genererPlanPersonnalise(
-                resultat, questions, reponses
+                resultat, questions, reponses, ageEnfant
         );
 
-        // 6. Sauvegarder le Plan en DB
+        // 7. Sauvegarder le Plan en DB
+        String tranche = determinerTranche(ageEnfant);
         PlanPersonnalise plan = new PlanPersonnalise();
         plan.setResultat(resultat);
-        plan.setTitre("Plan d'accompagnement - Niveau " + niveau + " (Score " + score + ")");
+        plan.setTitre("Plan d'accompagnement - " + tranche + " - Niveau " + niveau);
         plan.setDescription(contenuPlan);
-        plan.setObjectifs("Objectifs générés automatiquement par Claude AI");
+        plan.setObjectifs("Plan généré par IA pour tranche " + tranche);
         plan.setDateGeneration(LocalDate.now());
         planRepository.save(plan);
         log.info("Plan personnalisé sauvegardé pour résultat id: {}", resultat.getId());
 
         return resultat;
+    }
+
+    /**
+     * Surcharge pour compatibilité avec l'ancien code (sans âge).
+     */
+    public Resultat calculerEtSauvegarder(
+            Long enfantId,
+            List<String> questions,
+            List<Boolean> reponses) {
+        return calculerEtSauvegarder(enfantId, questions, reponses, null);
     }
 
     /**
@@ -93,14 +114,42 @@ public class ResultatService {
     }
 
     /**
-     * Classification du niveau de risque selon le score.
-     * Score 0-3  → FAIBLE
-     * Score 4-7  → MOYEN
-     * Score 8+   → ELEVE
+     * Classification du niveau de risque selon la tranche d'âge.
+     *
+     * Tranche 0-3 ans (8 questions) :
+     *   score 0-2 → FAIBLE | score 3-5 → MOYEN | score 6-8 → ELEVE
+     *
+     * Tranche 3-7 ans (10 questions) :
+     *   score 0-3 → FAIBLE | score 4-6 → MOYEN | score 7-10 → ELEVE
+     *
+     * Tranche 7-12 ans (8 questions) :
+     *   score 0-2 → FAIBLE | score 3-5 → MOYEN | score 6-8 → ELEVE
      */
-    private NiveauRisque classifierRisque(int score) {
-        if (score <= 3)      return NiveauRisque.FAIBLE;
-        else if (score <= 7) return NiveauRisque.MOYEN;
-        else                 return NiveauRisque.ELEVE;
+    private NiveauRisque classifierRisqueParTranche(int score, int age) {
+        if (age < 3) {
+            // Tranche 0-3 ans — 8 questions
+            if (score <= 2) return NiveauRisque.FAIBLE;
+            if (score <= 5) return NiveauRisque.MOYEN;
+            return NiveauRisque.ELEVE;
+        } else if (age < 7) {
+            // Tranche 3-7 ans — 10 questions
+            if (score <= 3) return NiveauRisque.FAIBLE;
+            if (score <= 6) return NiveauRisque.MOYEN;
+            return NiveauRisque.ELEVE;
+        } else {
+            // Tranche 7-12 ans — 8 questions
+            if (score <= 2) return NiveauRisque.FAIBLE;
+            if (score <= 5) return NiveauRisque.MOYEN;
+            return NiveauRisque.ELEVE;
+        }
+    }
+
+    /**
+     * Retourne le libellé de la tranche d'âge.
+     */
+    public static String determinerTranche(int age) {
+        if (age < 3)  return "Nourrisson 0-3 ans";
+        if (age < 7)  return "Préscolaire 3-7 ans";
+        return "Scolaire 7-12 ans";
     }
 }

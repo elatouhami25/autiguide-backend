@@ -1,5 +1,6 @@
 package com.autiguide.autiguide.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
@@ -37,7 +38,9 @@ public class PlanPersonnalise {
     /**
      * Le résultat qui a déclenché la génération de ce plan.
      * OneToOne : un plan est lié à un seul résultat.
+     * JsonIgnore pour éviter la boucle infinie Resultat → Plan → Resultat
      */
+    @JsonIgnore
     @OneToOne
     @JoinColumn(name = "resultat_id")
     private Resultat resultat;

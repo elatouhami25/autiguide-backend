@@ -31,15 +31,12 @@ public class EnfantController {
     private EnfantService enfantService;
 
     /**
-     * Ajoute un nouvel enfant.
-     * Le parent doit être déjà connecté et son ID inclus dans l'objet enfant.
-     *
-     * @param enfant Données de l'enfant reçues en JSON
-     * @return L'enfant créé avec son ID
+     * Ajoute un nouvel enfant avec son parentId.
+     * Accepte : { prenom, dateNaissance, sexe, parentId }
      */
     @PostMapping
-    public ResponseEntity<Enfant> save(@RequestBody Enfant enfant) {
-        return ResponseEntity.ok(enfantService.save(enfant));
+    public ResponseEntity<Enfant> save(@RequestBody java.util.Map<String, Object> body) {
+        return ResponseEntity.ok(enfantService.saveWithParent(body));
     }
 
     /**
@@ -54,6 +51,16 @@ public class EnfantController {
         return enfantService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Récupère tous les enfants (admin).
+     *
+     * @return Liste de tous les enfants
+     */
+    @GetMapping("/all")
+    public ResponseEntity<List<Enfant>> findAll() {
+        return ResponseEntity.ok(enfantService.findAll());
     }
 
     /**
@@ -79,8 +86,8 @@ public class EnfantController {
     @PutMapping("/{id}")
     public ResponseEntity<Enfant> update(
             @PathVariable Long id,
-            @RequestBody Enfant enfant) {
-        return ResponseEntity.ok(enfantService.update(id, enfant));
+            @RequestBody java.util.Map<String, Object> body) {
+        return ResponseEntity.ok(enfantService.update(id, body));
     }
 
     /**

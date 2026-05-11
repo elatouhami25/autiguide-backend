@@ -1,5 +1,6 @@
 package com.autiguide.autiguide.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
@@ -41,15 +42,19 @@ public class SuiviJournalier {
 
     /**
      * L'enfant concerné par ce suivi.
+     * On ignore les champs qui créent des boucles de sérialisation.
      */
     @ManyToOne
     @JoinColumn(name = "enfant_id")
+    @JsonIgnoreProperties({"resultats", "suivis", "parent"})
     private Enfant enfant;
 
     /**
      * Le parent qui a enregistré ce suivi.
+     * On ignore les champs qui créent des boucles de sérialisation.
      */
     @ManyToOne
     @JoinColumn(name = "parent_id")
+    @JsonIgnoreProperties({"enfants", "suivis"})
     private Parent parent;
 }
